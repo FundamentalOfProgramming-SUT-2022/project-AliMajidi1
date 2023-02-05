@@ -2,36 +2,95 @@
 #include "packages.h"
 #endif
 
-#define MAX_DIR_LEN 1000
-
-int createFile(char *dir, char *file)
+int dirExists(char *dir)
 {
+    FILE *dirToCheck = fopen(dir, "r");
+    if (dirToCheck == NULL)
+        return 0;
+    return 1;
+}
 
-    char *token = strdup(dir);
-    char *directoryToCheck = (char *)calloc(MAX_DIR_LEN, sizeof(char));
+void creatDir(char *dir)
+{
+    mkdir(dir, ACCESSPERMS);
+}
+
+int fileExists(char *path)
+{
+    if (!access(path, F_OK))
+        return 1;
+    return 0;
+}
+
+int tokenizePath(char *path, size_t pathLen)
+{
+    char *pathToCheck = calloc(pathLen, sizeof(char));
+    char *token = strdup(path);
 
     token = strtok(token, "/");
+    strcat(pathToCheck, token);
 
-    while (token != NULL)
+    while (1)
     {
-        strcat(directoryToCheck, token);
-        strcat(directoryToCheck, "/");
-
-        if (!dirExists(directoryToCheck))
+        if (strlen(pathToCheck) == pathLen)
         {
-            creatDir(directoryToCheck);
+            if (fileExists(pathToCheck))
+                return -1;
+            else
+            {
+                fopen(pathToCheck, "w");
+            }
         }
 
+        if (!dirExists(pathToCheck))
+            creatDir(pathToCheck);
+
         token = strtok(NULL, "/");
+
+        if (token == NULL)
+            break;
+
+        strcat(pathToCheck, "/");
+        strcat(pathToCheck, token);
     }
 
-    strcat(directoryToCheck, file);
+    return 0;
+}
 
-    if (fileExists(directoryToCheck))
-        return -1;
+int handleCreteFile(char *command, size_t commandLen)
+{
 
-    FILE *newFile = fopen(directoryToCheck, "w");
+    char *path = calloc(commandLen, sizeof(char));
+    int start = 18, pathIndex = 0;
 
-    if (newFile != NULL)
-        return 1;
+    if (command[start] == '"')
+    {
+        if (command[start + 1] == '/')
+            start += 2;
+        else
+            start++;
+
+        while (command[start] != '"')
+        {
+            path[pathIndex++] = command[start++];
+        }
+
+        if (path[pathIndex - 1] == '/')
+            path[pathIndex - 1] = '\0';
+    }
+    else
+    {
+        if (command[start] == '/')
+            start++;
+
+        while (command[start] != ' ' && start != commandLen)
+        {
+            path[pathIndex++] = command[start++];
+        }
+
+        if (path[pathIndex - 1] == '/')
+            path[pathIndex - 1] = '\0';
+    }
+
+    return tokenizePath(path, strlen(path));
 }
